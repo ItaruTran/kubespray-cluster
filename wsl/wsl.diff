@@ -1,0 +1,178 @@
+diff --git a/roles/container-engine/containerd/templates/containerd.service.j2 b/roles/container-engine/containerd/templates/containerd.service.j2
+index 06b229084..a3547322c 100644
+--- a/roles/container-engine/containerd/templates/containerd.service.j2
++++ b/roles/container-engine/containerd/templates/containerd.service.j2
+@@ -15,11 +15,11 @@
+ [Unit]
+ Description=containerd container runtime
+ Documentation=https://containerd.io
+-After=network.target local-fs.target
++After=network.target local-fs.target cron.service
+ 
+ [Service]
+-ExecStartPre=-/sbin/modprobe overlay
+-ExecStart={{ containerd_bin_dir }}/containerd
++ExecStartPre=-/usr/bin/env ip netns exec vnet{{ myconf_loop_ind }} /sbin/modprobe overlay
++ExecStart=-/usr/bin/env ip netns exec vnet{{ myconf_loop_ind }} {{ containerd_bin_dir }}/containerd
+ 
+ Type=notify
+ Delegate=yes
+diff --git a/roles/etcd/templates/etcd-events-host.service.j2 b/roles/etcd/templates/etcd-events-host.service.j2
+index 6e0167a8c..47f743981 100644
+--- a/roles/etcd/templates/etcd-events-host.service.j2
++++ b/roles/etcd/templates/etcd-events-host.service.j2
+@@ -1,12 +1,12 @@
+ [Unit]
+ Description=etcd
+-After=network.target
++After=network.target cron.service
+ 
+ [Service]
+ Type=notify
+ User=root
+ EnvironmentFile=/etc/etcd-events.env
+-ExecStart={{ bin_dir }}/etcd
++ExecStart=-/usr/bin/env ip netns exec vnet{{ myconf_loop_ind }} {{ bin_dir }}/etcd
+ NotifyAccess=all
+ Restart=always
+ RestartSec=10s
+diff --git a/roles/etcd/templates/etcd-host.service.j2 b/roles/etcd/templates/etcd-host.service.j2
+index 6bba8054e..8cdce95f2 100644
+--- a/roles/etcd/templates/etcd-host.service.j2
++++ b/roles/etcd/templates/etcd-host.service.j2
+@@ -1,12 +1,12 @@
+ [Unit]
+ Description=etcd
+-After=network.target
++After=network.target cron.service
+ 
+ [Service]
+ Type=notify
+ User=root
+ EnvironmentFile=/etc/etcd.env
+-ExecStart={{ bin_dir }}/etcd
++ExecStart=-/usr/bin/env ip netns exec vnet{{ myconf_loop_ind }} {{ bin_dir }}/etcd
+ NotifyAccess=all
+ Restart=always
+ RestartSec=10s
+diff --git a/roles/etcd/templates/openssl.conf.j2 b/roles/etcd/templates/openssl.conf.j2
+index f6681a145..355de0881 100644
+--- a/roles/etcd/templates/openssl.conf.j2
++++ b/roles/etcd/templates/openssl.conf.j2
+@@ -24,6 +24,7 @@ authorityKeyIdentifier=keyid:always,issuer
+ 
+ [alt_names]
+ DNS.1 = localhost
++DNS.{{ counter["dns"] }} = 10.0.0.253{{ increment(counter, 'dns') }}
+ {% for host in groups['etcd'] %}
+ DNS.{{ counter["dns"] }} = {{ host }}{{ increment(counter, 'dns') }}
+ {% endfor %}
+diff --git a/roles/kubernetes/control-plane/tasks/define-first-kube-control.yml b/roles/kubernetes/control-plane/tasks/define-first-kube-control.yml
+index 64e2de785..50e2708d2 100644
+--- a/roles/kubernetes/control-plane/tasks/define-first-kube-control.yml
++++ b/roles/kubernetes/control-plane/tasks/define-first-kube-control.yml
+@@ -1,7 +1,7 @@
+ ---
+ 
+ - name: Check which kube-control nodes are already members of the cluster
+-  command: "{{ bin_dir }}/kubectl get nodes --selector=node-role.kubernetes.io/control-plane -o json"
++  command: "ip netns exec vnet{{ myconf_loop_ind }} {{ bin_dir }}/kubectl get nodes --selector=node-role.kubernetes.io/control-plane -o json"
+   register: kube_control_planes_raw
+   ignore_errors: yes
+   changed_when: false
+diff --git a/roles/kubernetes/control-plane/tasks/kubeadm-secondary.yml b/roles/kubernetes/control-plane/tasks/kubeadm-secondary.yml
+index f3fd207c4..139aa7404 100644
+--- a/roles/kubernetes/control-plane/tasks/kubeadm-secondary.yml
++++ b/roles/kubernetes/control-plane/tasks/kubeadm-secondary.yml
+@@ -65,7 +65,7 @@
+ 
+ - name: Joining control plane node to the cluster.
+   command: >-
+-    {{ bin_dir }}/kubeadm join
++    ip netns exec vnet{{ myconf_loop_ind }} {{ bin_dir }}/kubeadm join
+     --config {{ kube_config_dir }}/kubeadm-controlplane.yaml
+     --ignore-preflight-errors=all
+     --skip-phases={{ kubeadm_join_phases_skip | join(',') }}
+diff --git a/roles/kubernetes/control-plane/tasks/kubeadm-setup.yml b/roles/kubernetes/control-plane/tasks/kubeadm-setup.yml
+index dcad832ba..e591c9b70 100644
+--- a/roles/kubernetes/control-plane/tasks/kubeadm-setup.yml
++++ b/roles/kubernetes/control-plane/tasks/kubeadm-setup.yml
+@@ -178,7 +178,7 @@
+ - name: Kubeadm | Initialize first master
+   command: >-
+     timeout -k {{ kubeadm_init_timeout }} {{ kubeadm_init_timeout }}
+-    {{ bin_dir }}/kubeadm init
++    ip netns exec vnet{{ myconf_loop_ind }} {{ bin_dir }}/kubeadm init
+     --config={{ kube_config_dir }}/kubeadm-config.yaml
+     --ignore-preflight-errors=all
+     --skip-phases={{ kubeadm_init_phases_skip | join(',') }}
+@@ -214,7 +214,7 @@
+     - kubeadm_token
+ 
+ - name: Create kubeadm token for joining nodes with 24h expiration (default)
+-  command: "{{ bin_dir }}/kubeadm --kubeconfig {{ kube_config_dir }}/admin.conf token create"
++  command: "ip netns exec vnet1 {{ bin_dir }}/kubeadm --kubeconfig {{ kube_config_dir }}/admin.conf token create"
+   changed_when: false
+   register: temp_token
+   retries: 5
+diff --git a/roles/kubernetes/node/templates/kubelet.service.j2 b/roles/kubernetes/node/templates/kubelet.service.j2
+index 9df98e09e..3aa2f6ed1 100644
+--- a/roles/kubernetes/node/templates/kubelet.service.j2
++++ b/roles/kubernetes/node/templates/kubelet.service.j2
+@@ -1,7 +1,7 @@
+ [Unit]
+ Description=Kubernetes Kubelet Server
+ Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+-After={{ container_manager }}.service
++After={{ container_manager }}.service cron.service
+ {% if container_manager == 'docker' %}
+ Wants=docker.socket
+ {% else %}
+@@ -28,7 +28,7 @@ ExecStartPre=/bin/mkdir -p /sys/fs/cgroup/memory/{{ kube_reserved_cgroups_for_se
+ ExecStartPre=/bin/mkdir -p /sys/fs/cgroup/pids/{{ kube_reserved_cgroups_for_service_slice }}
+ ExecStartPre=/bin/mkdir -p /sys/fs/cgroup/systemd/{{ kube_reserved_cgroups_for_service_slice }}
+ {% endif %}
+-ExecStart={{ bin_dir }}/kubelet \
++ExecStart=-/usr/bin/env ip netns exec vnet{{ myconf_loop_ind }} {{ bin_dir }}/kubelet \
+ 		$KUBE_LOGTOSTDERR \
+ 		$KUBE_LOG_LEVEL \
+ 		$KUBELET_API_SERVER \
+diff --git a/roles/kubernetes/preinstall/tasks/0080-system-configurations.yml b/roles/kubernetes/preinstall/tasks/0080-system-configurations.yml
+index 87fb17667..949ccb38c 100644
+--- a/roles/kubernetes/preinstall/tasks/0080-system-configurations.yml
++++ b/roles/kubernetes/preinstall/tasks/0080-system-configurations.yml
+@@ -121,12 +121,12 @@
+     - { name: vm.panic_on_oom, value: 0 }
+   when: kubelet_protect_kernel_defaults | bool
+ 
+-- name: Check dummy module
+-  community.general.modprobe:
+-    name: dummy
+-    state: present
+-    params: 'numdummies=0'
+-  when: enable_nodelocaldns
++# - name: Check dummy module
++#   community.general.modprobe:
++#     name: dummy
++#     state: present
++#     params: 'numdummies=0'
++#   when: enable_nodelocaldns
+ 
+ - name: Set additional sysctl variables
+   ansible.posix.sysctl:
+diff --git a/roles/kubespray-defaults/defaults/main/main.yml b/roles/kubespray-defaults/defaults/main/main.yml
+index 257919ab7..90d699fbc 100644
+--- a/roles/kubespray-defaults/defaults/main/main.yml
++++ b/roles/kubespray-defaults/defaults/main/main.yml
+@@ -608,6 +608,11 @@ etcd_events_peer_addresses: |-
+     {{ hostvars[item].etcd_member_name | default("etcd" + loop.index | string) }}-events=https://{{ hostvars[item].etcd_events_access_address | default(hostvars[item].ip | default(fallback_ips[item])) }}:2382{% if not loop.last %},{% endif %}
+   {%- endfor %}
+ 
++myconf_loop_ind: |-
++  {% for host in groups['etcd'] %}
++  {%   if inventory_hostname == host %}{{ loop.index | string }}{% endif %}
++  {% endfor %}
++
+ etcd_heartbeat_interval: "250"
+ etcd_election_timeout: "5000"
+ etcd_snapshot_count: "10000"
