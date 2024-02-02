@@ -1,0 +1,19 @@
+grafana.ini:
+  server:
+    root_url: https://monitor.example.com
+ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: le-http-auth
+  enabled: true
+  hosts:
+    - monitor.example.com
+  tls:
+    - hosts:
+        - monitor.example.com
+      secretName: http-tls-monitor
+persistence:
+  enabled: true
+  size: 3Gi
+useStatefulSet: true
+
+

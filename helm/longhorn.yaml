@@ -1,0 +1,15 @@
+defaultSettings:
+  concurrentAutomaticEngineUpgradePerNodeLimit: 2
+  defaultNodeSelector:
+    enable: false
+  defaultReplicaCount: 2
+  kubernetesClusterAutoscalerEnabled: false
+  nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
+image:
+  defaultImage: true
+longhorn:
+  default_setting: true
+persistence:
+  defaultClassReplicaCount: 2
+  reclaimPolicy: Retain
+

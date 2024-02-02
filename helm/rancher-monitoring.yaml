@@ -1,0 +1,42 @@
+alertmanager:
+  alertmanagerSpec:
+    configSecret: alertmanager-rancher-monitoring-alertmanager
+    useExistingSecret: true
+
+grafana:
+  additionalDataSources:
+    - access: proxy
+      name: Loki
+      orgId: 1
+      type: loki
+      uid: P8E80F9AEF21F6940
+      url: http://loki.loki:3100
+      version: 1
+
+ingressNginx:
+  enabled: true
+prometheus:
+  prometheusSpec:
+    evaluationInterval: 1m
+    nodeSelector:
+      prometheus-metric: 'true'
+    replicas: 2
+    resources:
+      limits:
+        cpu: '2'
+        memory: 7Gi
+      requests:
+        cpu: 300m
+        memory: 5Gi
+    retention: 15d
+    retentionSize: 70GiB
+    scrapeInterval: 1m
+    storageSpec:
+      disableMountSubPath: true
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 70G
+          storageClassName: local-path
+

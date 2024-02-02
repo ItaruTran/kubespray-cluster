@@ -1,0 +1,20 @@
+# hostname: rancher.example.com
+
+auditLog:
+  level: 1
+
+replicas: 2
+resources:
+  limits:
+    cpu: '2'
+    memory: 3Gi
+  requests:
+    cpu: '100m'
+    memory: 1Gi
+
+
+ingress:
+  enabled: true
+  extraAnnotations:
+    cert-manager.io/cluster-issuer: le-http-auth
+    nginx.ingress.kubernetes.io/proxy-body-size: '0'

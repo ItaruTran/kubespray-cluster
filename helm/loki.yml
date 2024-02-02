@@ -1,0 +1,81 @@
+loki:
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: 'filesystem'
+
+    # type: 's3'
+    # bucketNames:
+    #   chunks: loki-chunks
+    #   ruler: loki-ruler
+    #   admin: loki-admin
+    # s3:
+    #   endpoint: https://xxxxxxxxxxxxxx
+    #   secretAccessKey: xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    #   accessKeyId: xxxxxxxxxxxxx
+    #   s3ForcePathStyle: true
+
+  auth_enabled: false
+
+  limits_config:
+    reject_old_samples: true
+    reject_old_samples_max_age: 31d
+
+tableManager:
+  retention_deletes_enabled: true
+  retention_period: 31d
+
+singleBinary:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 800m
+      memory: 1Gi
+
+monitoring:
+  dashboards:
+    namespace: cattle-dashboards
+  lokiCanary:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 100Mi
+      limits:
+        cpu: 500m
+        memory: 400Mi
+  selfMonitoring:
+    enabled: true
+    grafanaAgent:
+      enableConfigReadAPI: true
+  serviceMonitor:
+    enabled: true
+    interval: 1m
+
+ingress:
+  annotations:
+    # Enable client certificate authentication
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+    # Create the secret containing the trusted ca certificates
+    nginx.ingress.kubernetes.io/auth-tls-secret: "loki/crt-loki-internal"
+    # Specify the verification depth in the client certificates chain
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "1"
+    # Specify if certificates are passed to upstream server
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "true"
+
+    # # type of authentication
+    # nginx.ingress.kubernetes.io/auth-type: basic
+    # # name of the secret that contains the user/password definitions
+    # nginx.ingress.kubernetes.io/auth-secret: basic-auth
+    # # message to display with an appropriate context why the authentication is required
+    # nginx.ingress.kubernetes.io/auth-realm: 'Authentication Required - loki'
+  enabled: true
+  hosts:
+    - loki.internal
+  tls:
+    - hosts:
+        - loki.internal
+      secretName: crt-loki-internal
+

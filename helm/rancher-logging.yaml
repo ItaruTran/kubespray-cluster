@@ -1,0 +1,17 @@
+additionalLoggingSources:
+  rke:
+    enabled: false
+  kubeAudit:
+    auditFilename: audit-log.json
+    enabled: false
+    fluentbit:
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/controlplane
+          value: 'true'
+        - effect: NoExecute
+          key: node-role.kubernetes.io/etcd
+          value: 'true'
+    pathPrefix: /var/log/kube-audit
+
+
