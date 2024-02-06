@@ -17,7 +17,7 @@ download_run_once: true
 # coredns_additional_configs adds any extra configuration to coredns
 # coredns_additional_configs: |
 #   hosts {
-#     192.168.30.27 minio-bvnd-internal.okuro.vn
+#     192.168.30.145 internal.example.com
 #     fallthrough
 #   }
 
